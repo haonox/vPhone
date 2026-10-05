@@ -37,6 +37,8 @@ ActionExecutor：执行一个 L2 动作
 
 首个验收配置采用 DeepSeek 的 `deepseek-flash`。其官方文档说明了 PNG 图像与函数工具调用能力：[视觉输入](https://api-docs.deepseek.com/guides/vision/) · [工具调用](https://api-docs.deepseek.com/guides/tool_calls/)。适配器在请求中明确提供截图宽高，要求返回该截图内的像素坐标。配置其他模型时，必须单独核对其对图片块、所配置的图像细节、函数工具调用及可选请求字段的支持；仅更改模型 ID 不保证兼容。
 
+当前请求显式设置 `thinking.type=disabled`，并以 `tool_choice=required` 强制模型返回工具调用。关闭思考模式是 DeepSeek 接受强制工具选择的必要条件；显式的 `thinking` 开关优先于可选的 `reasoning_effort`，因此响应不包含 `reasoning_content`。
+
 ### 2.2 工具与终止决策
 
 九种工具都要求模型提供 `screen_summary` 和 `decision_reason`。前者只描述当前截图中与任务有关的可见内容；后者简要说明本轮决策如何推进或终止任务。两者必须是非空、可打印、最多 1000 字符的单行文本，并与工具的业务参数一起接受本地严格校验。它们不是自由文本回复；已执行步骤会将其作为 `StepRecord` 的一部分输出到 CLI。

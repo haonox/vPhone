@@ -193,7 +193,8 @@ class OpenAICompatibleDecisionModel:
                         },
                     ],
                     "tools": tools_for_screen(screen),
-                    "tool_choice": "auto",
+                    "tool_choice": "required",
+                    "extra_body": {"thinking": {"type": "disabled"}},
                     "max_tokens": self._config.max_output_tokens,
                 }
                 if self._config.reasoning_effort is not None:

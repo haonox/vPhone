@@ -106,7 +106,8 @@ def test_provider_sends_png_as_original_and_returns_validated_action(capsys) -> 
     assert decision.action.point == Point(99, 199)
     assert completions.kwargs["model"] == "vision-test"
     assert completions.kwargs["max_tokens"] == 4096
-    assert completions.kwargs["tool_choice"] == "auto"
+    assert completions.kwargs["tool_choice"] == "required"
+    assert completions.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
     assert "reasoning_effort" not in completions.kwargs
     tap_tool = next(
         item for item in completions.kwargs["tools"] if item["function"]["name"] == "tap"
@@ -188,6 +189,8 @@ def test_provider_sends_configured_optional_reasoning_effort() -> None:
     assert completions.kwargs["model"] == "another-model"
     assert completions.kwargs["max_tokens"] == 512
     assert completions.kwargs["reasoning_effort"] == "medium"
+    assert completions.kwargs["tool_choice"] == "required"
+    assert completions.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
     assert "detail" not in completions.kwargs["messages"][1]["content"][1]["image_url"]
 
 
