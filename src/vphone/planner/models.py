@@ -185,3 +185,14 @@ class SessionResult:
     def completed(self) -> bool:
         """Model reported task completion; not an independent UI proof."""
         return self.status is SessionStatus.FINISHED
+
+    @property
+    def terminal_action(self) -> str | None:
+        """Return the model terminal tool name when one produced this result."""
+        if self.terminal_trace is None:
+            return None
+        if self.status is SessionStatus.FINISHED:
+            return "finish"
+        if self.status is SessionStatus.STOPPED:
+            return "stop"
+        return None

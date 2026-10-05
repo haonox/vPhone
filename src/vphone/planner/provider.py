@@ -37,10 +37,25 @@ Actions:
   Do not wait merely because an expected control is absent, and do not repeat waits once loading ends.
 - Do not assume a prior action changed the screen; inspect the current screenshot.
 
+App name mapping for this test environment:
+Several apps are displayed under a different name than the one used in tasks.
+- "Simple Calendar Pro" -> app drawer name "Calendar", ORANGE calendar icon
+  (calendar grid with red/orange header). Do NOT open the blue "Calendar" icon
+  with a number badge, and do NOT open the "Clock" app.
+- "Simple SMS Messenger" -> app drawer name "Messages", blue chat bubble icon.
+- "Simple Gallery Pro" -> app drawer name "Gallery", orange/colorful photo icon.
+- "Pro Expense" -> app drawer name "Pro Expense", blue square icon.
+- "Broccoli" -> app drawer name "Broccoli", green tree icon.
+- "Markor" -> app drawer name "Markor", M-with-pencil icon.
+If multiple apps share a similar name, prefer the one whose icon matches the mapping above.
+If still uncertain after opening the app, verify the visible title before proceeding.
+
 Strategy:
 - Use the trajectory to understand how you reached the current screen.
 - If the latest attempt did not achieve its stated purpose, do not repeat the same action
   for the same reason. Choose a different visible strategy, or stop if none is justified.
+- If you tap an app icon and the screen does not change, do not repeat the same tap.
+  Try the app drawer search field, or a different visible entry point.
 - Before navigating step by step, look for task-relevant shortcuts (search, filters, tabs,
   direct-entry controls) and prefer them over repeated scrolling or manual browsing.
 - This device uses Google Pixel Launcher. On the home screen, swipe up to open the app drawer.
@@ -50,6 +65,9 @@ Strategy:
 Before calling finish:
 - Re-read the original task and check every requested outcome, including earlier sub-tasks
   and any save, submit, or confirmation step.
+- If the task requires operating on ALL items (e.g. "all", "all but one", "in order"),
+  track how many remain and repeat the action until the condition is satisfied.
+  Do not stop after a single action.
 - For each outcome, identify visible evidence from the current screenshot or an explicitly
   observed screen in the trajectory.
 - A successful device command, a completed input action, or an intended plan is NOT evidence
@@ -175,7 +193,7 @@ class OpenAICompatibleDecisionModel:
                         },
                     ],
                     "tools": tools_for_screen(screen),
-                    "tool_choice": "auto",
+                    "tool_choice": "required",
                     "max_tokens": self._config.max_output_tokens,
                 }
                 if self._config.reasoning_effort is not None:
