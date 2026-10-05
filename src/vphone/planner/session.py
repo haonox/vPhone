@@ -121,7 +121,7 @@ class PlannerSession:
             exc.add_note(f"failed to restore input method: {cleanup_error}")
 
     def close(self) -> None:
-        """End the task-scoped headless input session, if it is still active."""
+        """End the task-scoped input session, if it is still active."""
         if self._text_input_started:
             self._device.stop_text_input()
             self._text_input_started = False
@@ -143,7 +143,7 @@ class PlannerSession:
         except DeviceError as exc:
             return self._terminate(
                 SessionStatus.ERROR,
-                f"failed to start headless text input: {exc}",
+                f"failed to start text input helper: {exc}",
             )
 
         try:

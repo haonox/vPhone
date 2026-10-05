@@ -25,9 +25,9 @@ class FakeRunner:
         if args[0] == "shell" and "settings get" in args[1]:
             stdout = f"{self.current_ime}\n".encode()
             if self.installed:
-                stdout += b"package:dev.vphone.input versionCode:5\n"
+                stdout += b"package:dev.vphone.input versionCode:6\n"
         elif args[0] == "shell" and "cmd package list" in args[1]:
-            stdout = b"package:dev.vphone.input versionCode:5\n" if self.installed else b""
+            stdout = b"package:dev.vphone.input versionCode:6\n" if self.installed else b""
         elif args[:3] == ("shell", "am", "broadcast"):
             stdout = self.broadcast
         else:

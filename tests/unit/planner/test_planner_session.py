@@ -38,7 +38,7 @@ class FakeDevice:
         self.text_input_stops = 0
 
     def start_text_input(self, *, timeout: float = 10.0) -> None:
-        """Record selection of the task-scoped headless input method."""
+        """Record selection of the task-scoped input method."""
         self.text_input_starts += 1
 
     def stop_text_input(self, *, timeout: float = 10.0) -> None:
@@ -169,7 +169,7 @@ def test_input_start_failure_stops_before_observation() -> None:
     result = session.step()
 
     assert result.status is SessionStatus.ERROR
-    assert "failed to start headless text input" in result.message
+    assert "failed to start text input helper" in result.message
     assert device.screen_calls == 0
     assert device.text_input_stops == 0
 

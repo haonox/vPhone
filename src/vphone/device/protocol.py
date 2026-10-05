@@ -51,7 +51,7 @@ class DeviceSession(Protocol):
         ...
 
     def start_text_input(self, *, timeout: float = 10.0) -> None:
-        """Select the headless input helper for the current task."""
+        """Select the visible input helper for the current task."""
         ...
 
     def stop_text_input(self, *, timeout: float = 10.0) -> None:

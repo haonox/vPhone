@@ -134,10 +134,6 @@ def test_provider_sends_png_as_original_and_returns_validated_action(capsys) -> 
     assert "swipe up to open the app drawer" in instructions
     assert "between home pages to search for apps" in instructions
     assert "use replace_text" in instructions
-    assert "vPhone uses a headless input method" in instructions
-    assert "try input_text on the next turn" in instructions
-    assert "Do not wait for a keyboard to appear" in instructions
-    assert "repeatedly tap the same text field" in instructions
     assert any(item["function"]["name"] == "replace_text" for item in completions.kwargs["tools"])
     long_press_tool = next(
         item for item in completions.kwargs["tools"] if item["function"]["name"] == "long_press"

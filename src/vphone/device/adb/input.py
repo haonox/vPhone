@@ -17,7 +17,7 @@ _IME_SERVICE = "dev.vphone.input/.VPhoneInputMethodService"
 _IME_COMMIT_ACTION = "dev.vphone.input.COMMIT_TEXT"
 _IME_REPLACE_ACTION = "dev.vphone.input.REPLACE_TEXT"
 _IME_HIDE_ACTION = "dev.vphone.input.HIDE_INPUT"
-_IME_VERSION_CODE = 5
+_IME_VERSION_CODE = 6
 _LONG_PRESS_DURATION_MS = 1000
 _BROADCAST_RESULT = re.compile(rb"Broadcast completed: result=(-?\d+)(?:, data=\"([^\"]*)\")?")
 _IME_COMPONENT = re.compile(r"^[A-Za-z0-9._]+/[A-Za-z0-9._$]+$")
@@ -231,7 +231,7 @@ def start_text_input(
     *,
     timeout: float = 10.0,
 ) -> str:
-    """Select the headless helper for a task and return the previous IME."""
+    """Select the visible keyboard helper for a task and return the previous IME."""
     if timeout <= 0:
         raise ValueError("timeout must be positive")
     deadline = time.monotonic() + timeout

@@ -182,7 +182,7 @@ class AdbDeviceSession:
             adb_input.prepare_text_input(self._runner, self.descriptor.device_id, timeout=timeout)
 
     def start_text_input(self, *, timeout: float = 10.0) -> None:
-        """Keep the headless helper selected until the current task ends."""
+        """Keep the visible keyboard helper selected until the current task ends."""
         with self._lock:
             self._ensure_open()
             if self._task_input_active:

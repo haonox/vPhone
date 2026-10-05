@@ -50,7 +50,7 @@ ADB 客户端 → ADB server → Android 设备
 | `long_press(Point)` | 5 s | 在坐标处固定按住 1000 ms；返回 `PrimitiveResult` |
 | `swipe(start, end, duration_ms=300)` | 5 s | 坐标滑动；时长 1–10000 ms |
 | `key_event(KeyCode \| int)` | 5 s | 预定义键或非负整数键码 |
-| `start_text_input()` / `stop_text_input()` | 各 10 s | 为任务选择无界面 helper；结束时隐藏并恢复先前输入法 |
+| `start_text_input()` / `stop_text_input()` | 各 10 s | 为任务选择可见键盘 helper；结束时隐藏并恢复先前输入法 |
 | `input_text(text)` | 10 s | 在当前焦点的光标或选区插入非空、可打印文本 |
 | `replace_text(text)` | 10 s | 全选当前焦点中的原内容并替换为非空、可打印文本 |
 | `close()` | — | 关闭会话，不关机、不断开 ADB |
@@ -77,11 +77,11 @@ L1 不获取 UI Automator hierarchy，不解析 XML，也不尝试读取 App 元
 | 原语 | 实现 | 主要约束 |
 | --- | --- | --- |
 | 点击 / 长按 / 滑动 / 按键 | `adb shell input tap/swipe/keyevent` | 长按是同点起止的 1000 ms swipe；返回只说明命令正常结束，不证明 UI 效果 |
-| 文本插入 / 替换 | 项目自带的无界面 IME 调用 `InputConnection` | Android API 21+；目标必须是能接受系统键盘输入的当前编辑器 |
+| 文本插入 / 替换 | 项目自带的可见键盘 IME 调用 `InputConnection` | Android API 21+；目标必须是能接受系统键盘输入的当前编辑器 |
 
 文本输入不再区分 ASCII 与 Unicode，也不依赖 UI Automator、可访问性节点或剪贴板。`input_text()` 在当前光标或选区调用 `commitText()`；`replace_text()` 先通过输入连接取得并全选编辑器内容，再一次性提交新文本。如果编辑器不允许获取或全选内容，替换会显式失败，不会退化成追加。两者都要求目标编辑器已经获得焦点。
 
-`open()` 在返回会话前安装或升级签名 helper APK，避免安装页破坏后续编辑焦点；部分 OEM 首次安装时会显示系统确认页。设备会话提供 `start_text_input()` / `stop_text_input()`：前者记录当前输入法并选择无界面 helper，后者先清除软键盘显示请求，再恢复原输入法并禁用 helper。规划任务在第一次观测前启动该输入范围，并在所有终止路径或上下文退出时停止，因此任务中聚焦编辑器不会显示软键盘，也不需要逐次切换。直接在范围外调用 `input_text()` / `replace_text()` 时仍采用单次临时切换，以保持 L1 API 的独立可用性。广播入口要求发送方拥有 `android.permission.DUMP`，普通应用不能调用。
+`open()` 在返回会话前安装或升级签名 helper APK，避免安装页破坏后续编辑焦点；部分 OEM 首次安装时会显示系统确认页。设备会话提供 `start_text_input()` / `stop_text_input()`：前者记录当前输入法并选择带可见键盘的 helper，后者先清除软键盘显示请求，再恢复原输入法并禁用 helper。规划任务在第一次观测前启动该输入范围，并在所有终止路径或上下文退出时停止；任务中聚焦编辑器会显示 vPhone 键盘，同时保持用于文本提交的输入连接，不需要逐次切换。直接在范围外调用 `input_text()` / `replace_text()` 时仍采用单次临时切换，以保持 L1 API 的独立可用性。广播入口要求发送方拥有 `android.permission.DUMP`，普通应用不能调用。
 
 文本仅接受非空、`str.isprintable()` 为真的字符串。`commitText()` 是一次编辑器提交，但失败或超时后仍不能假设输入没有生效；原输入法恢复失败也作为输入故障报告。L1 不重放文本，调用方应重新截图确认页面。
 
