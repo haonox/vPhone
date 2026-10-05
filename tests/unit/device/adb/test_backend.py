@@ -23,7 +23,7 @@ class FakeRunner:
         if command == ("devices", "-l"):
             stdout = self.output
         elif command[0] == "shell" and "cmd package list" in command[1]:
-            stdout = b"package:dev.vphone.input versionCode:4\n" if self.helper_installed else b""
+            stdout = b"package:dev.vphone.input versionCode:5\n" if self.helper_installed else b""
         else:
             stdout = b"Success\n"
             if command[0] == "install":

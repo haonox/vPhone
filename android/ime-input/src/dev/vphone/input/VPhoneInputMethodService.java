@@ -8,6 +8,7 @@ import android.inputmethodservice.InputMethodService;
 import android.os.Build;
 import android.text.InputType;
 import android.util.Base64;
+import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
@@ -19,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 public final class VPhoneInputMethodService extends InputMethodService {
     public static final String ACTION_COMMIT_TEXT = "dev.vphone.input.COMMIT_TEXT";
     public static final String ACTION_REPLACE_TEXT = "dev.vphone.input.REPLACE_TEXT";
+    public static final String ACTION_HIDE_INPUT = "dev.vphone.input.HIDE_INPUT";
     public static final String EXTRA_TEXT_BASE64 = "text_base64";
 
     private static final int RESULT_COMMITTED = 1;
@@ -29,6 +31,13 @@ public final class VPhoneInputMethodService extends InputMethodService {
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            if (ACTION_HIDE_INPUT.equals(intent.getAction())) {
+                requestHideSelf(0);
+                setResultCode(RESULT_COMMITTED);
+                setResultData("hidden");
+                return;
+            }
+
             String encoded = intent.getStringExtra(EXTRA_TEXT_BASE64);
             if (encoded == null) {
                 setResultCode(RESULT_INVALID_TEXT);
@@ -76,6 +85,7 @@ public final class VPhoneInputMethodService extends InputMethodService {
         super.onCreate();
         IntentFilter filter = new IntentFilter(ACTION_COMMIT_TEXT);
         filter.addAction(ACTION_REPLACE_TEXT);
+        filter.addAction(ACTION_HIDE_INPUT);
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(
                     receiver,
@@ -87,6 +97,21 @@ public final class VPhoneInputMethodService extends InputMethodService {
         } else {
             registerReceiver(receiver, filter, android.Manifest.permission.DUMP, null);
         }
+    }
+
+    @Override
+    public View onCreateInputView() {
+        return null;
+    }
+
+    @Override
+    public boolean onEvaluateInputViewShown() {
+        return false;
+    }
+
+    @Override
+    public boolean onEvaluateFullscreenMode() {
+        return false;
     }
 
     @Override

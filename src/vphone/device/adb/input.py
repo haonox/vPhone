@@ -16,7 +16,8 @@ _IME_PACKAGE = "dev.vphone.input"
 _IME_SERVICE = "dev.vphone.input/.VPhoneInputMethodService"
 _IME_COMMIT_ACTION = "dev.vphone.input.COMMIT_TEXT"
 _IME_REPLACE_ACTION = "dev.vphone.input.REPLACE_TEXT"
-_IME_VERSION_CODE = 4
+_IME_HIDE_ACTION = "dev.vphone.input.HIDE_INPUT"
+_IME_VERSION_CODE = 5
 _LONG_PRESS_DURATION_MS = 1000
 _BROADCAST_RESULT = re.compile(rb"Broadcast completed: result=(-?\d+)(?:, data=\"([^\"]*)\")?")
 _IME_COMPONENT = re.compile(r"^[A-Za-z0-9._]+/[A-Za-z0-9._$]+$")
@@ -224,6 +225,79 @@ def replace_text(
     )
 
 
+def start_text_input(
+    runner: AdbRunner,
+    serial: str,
+    *,
+    timeout: float = 10.0,
+) -> str:
+    """Select the headless helper for a task and return the previous IME."""
+    if timeout <= 0:
+        raise ValueError("timeout must be positive")
+    deadline = time.monotonic() + timeout
+    previous_ime, installed_version = _read_ime_state(runner, serial, deadline=deadline)
+    if _IME_COMPONENT.fullmatch(previous_ime) is None:
+        raise InputError("the device did not report a current input method")
+    if installed_version != _IME_VERSION_CODE:
+        raise InputError("the input method helper is not prepared for this device session")
+    if previous_ime == _IME_SERVICE:
+        return previous_ime
+
+    try:
+        _select_ime_helper(runner, serial, deadline=deadline)
+    except DeviceError as operation_error:
+        try:
+            _restore_input_method(
+                runner,
+                serial,
+                previous_ime,
+                timeout=min(5.0, _remaining_timeout(deadline)),
+            )
+        except DeviceError as restore_error:
+            operation_error.add_note(f"failed to restore input method: {restore_error}")
+        raise
+    return previous_ime
+
+
+def stop_text_input(
+    runner: AdbRunner,
+    serial: str,
+    previous_ime: str,
+    *,
+    timeout: float = 10.0,
+) -> None:
+    """Hide the helper and restore the IME selected before the task."""
+    if _IME_COMPONENT.fullmatch(previous_ime) is None:
+        raise InputError("the previous input method is invalid")
+    if timeout <= 0:
+        raise ValueError("timeout must be positive")
+    deadline = time.monotonic() + timeout
+    hide_error: DeviceError | None = None
+    restore_error: DeviceError | None = None
+    try:
+        _send_hide(runner, serial, deadline=deadline)
+    except DeviceError as exc:
+        hide_error = exc
+    finally:
+        if previous_ime != _IME_SERVICE:
+            try:
+                _restore_input_method(
+                    runner,
+                    serial,
+                    previous_ime,
+                    timeout=min(5.0, _remaining_timeout(deadline)),
+                )
+            except DeviceError as exc:
+                restore_error = exc
+
+    if hide_error is not None:
+        if restore_error is not None:
+            hide_error.add_note(f"failed to restore input method: {restore_error}")
+        raise hide_error
+    if restore_error is not None:
+        raise InputError("the previous input method was not restored") from restore_error
+
+
 def _edit_text(
     runner: AdbRunner,
     serial: str,
@@ -405,7 +479,35 @@ def _send_text(
         time.sleep(0.1)
 
 
-def _restore_input_method(runner: AdbRunner, serial: str, previous_ime: str) -> None:
+def _send_hide(runner: AdbRunner, serial: str, *, deadline: float) -> None:
+    """Ask the helper to clear the system's soft-input visibility request."""
+    result = runner.run(
+        (
+            "shell",
+            "am",
+            "broadcast",
+            "--receiver-foreground",
+            "-p",
+            _IME_PACKAGE,
+            "-a",
+            _IME_HIDE_ACTION,
+        ),
+        serial=serial,
+        timeout=_remaining_timeout(deadline),
+    )
+    match = _BROADCAST_RESULT.search(result.stdout + result.stderr)
+    code = int(match.group(1)) if match is not None else 0
+    if code != 1:
+        raise InputError("the input method helper did not acknowledge hide")
+
+
+def _restore_input_method(
+    runner: AdbRunner,
+    serial: str,
+    previous_ime: str,
+    *,
+    timeout: float = 5.0,
+) -> None:
     """Restore the user's IME and disable the helper even after input failure."""
     runner.run(
         (
@@ -413,7 +515,7 @@ def _restore_input_method(runner: AdbRunner, serial: str, previous_ime: str) -> 
             f"ime set {previous_ime} >/dev/null && ime disable {_IME_SERVICE} >/dev/null",
         ),
         serial=serial,
-        timeout=5.0,
+        timeout=timeout,
     )
 
 

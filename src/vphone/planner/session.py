@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 import time
 from collections.abc import Callable
+from types import TracebackType
+from typing import Self
 
 from vphone.action import ActionExecutor
 from vphone.action.models import (
@@ -17,6 +19,7 @@ from vphone.action.models import (
     TextAction,
     WaitAction,
 )
+from vphone.device.errors import DeviceError
 from vphone.device.protocol import DeviceSession
 from vphone.perception import PerceptionEngine
 from vphone.perception.errors import PerceptionError
@@ -95,8 +98,33 @@ class PlannerSession:
         self._steps: list[StepRecord] = []
         self._latest_observation = None
         self._terminal_result: SessionResult | None = None
+        self._text_input_started = False
         self._executor = ActionExecutor(device)
         self._perception = PerceptionEngine()
+
+    def __enter__(self) -> Self:
+        """Return this task session; input starts immediately before its first observation."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        """Restore the device input method when a caller abandons or interrupts the task."""
+        try:
+            self.close()
+        except DeviceError as cleanup_error:
+            if exc is None:
+                raise
+            exc.add_note(f"failed to restore input method: {cleanup_error}")
+
+    def close(self) -> None:
+        """End the task-scoped headless input session, if it is still active."""
+        if self._text_input_started:
+            self._device.stop_text_input()
+            self._text_input_started = False
 
     def step(self) -> SessionResult:
         """Observe, decide, and dispatch at most one action.
@@ -108,6 +136,15 @@ class PlannerSession:
             return self._terminal_result
         if self._time_limit_reached():
             return self._terminate(SessionStatus.TIME_LIMIT, "time limit reached")
+        try:
+            if not self._text_input_started:
+                self._device.start_text_input()
+                self._text_input_started = True
+        except DeviceError as exc:
+            return self._terminate(
+                SessionStatus.ERROR,
+                f"failed to start headless text input: {exc}",
+            )
 
         try:
             self._latest_observation = self._perception.observe(self._device)
@@ -166,6 +203,15 @@ class PlannerSession:
     def _terminate(
         self, status: SessionStatus, message: str, terminal_trace: DecisionTrace | None = None
     ) -> SessionResult:
+        try:
+            self.close()
+        except DeviceError as exc:
+            # The device session retains its own active flag and will make one
+            # final restore attempt when it closes; avoid retrying here when the
+            # planner context exits immediately after this terminal result.
+            self._text_input_started = False
+            status = SessionStatus.ERROR
+            message = f"{message}; failed to restore input method: {exc}"
         result = self._result(status, message, terminal_trace)
         self._terminal_result = result
         return result

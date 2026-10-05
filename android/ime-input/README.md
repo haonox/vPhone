@@ -2,9 +2,10 @@
 
 vPhone packages a minimal, non-visual Android input method. The device backend
 installs or upgrades it while opening a session, before an editor is focused.
-During a text action, the backend enables and selects the helper long enough to
-perform one of two editor operations, then restores the previous input method
-and disables the helper:
+The planner selects the helper before the first task observation and keeps it
+selected for the complete task, so focusing an editor cannot display the user's
+software keyboard. At task termination it hides the IME window, restores the
+previous input method, and disables the helper:
 
 - `input_text` calls `InputConnection.commitText()` at the current selection.
 - `replace_text` selects the focused editor's complete extracted text and then
@@ -14,6 +15,8 @@ and disables the helper:
 This uses the same Android editor protocol as an ordinary software keyboard. It
 does not inspect accessibility nodes, use the clipboard, or special-case apps.
 Both operations require the intended editor to already have input focus.
+Direct device API calls made outside a planner task remain self-contained: they
+temporarily select the helper for one operation and then restore the prior IME.
 The broadcast endpoint requires the platform `android.permission.DUMP`
 permission, which the ADB shell owns and ordinary applications do not.
 

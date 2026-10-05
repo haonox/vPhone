@@ -12,7 +12,7 @@ from vphone.action import (
     TextAction,
     WaitAction,
 )
-from vphone.device import Point, PrimitiveResult, ScreenFrame
+from vphone.device import InputError, Point, PrimitiveResult, ScreenFrame
 from vphone.planner.errors import InvalidDecisionError
 from vphone.planner.models import (
     ActionDecision,
@@ -34,6 +34,16 @@ class FakeDevice:
         self.screen_calls = 0
         self.taps: list[Point] = []
         self.long_presses: list[Point] = []
+        self.text_input_starts = 0
+        self.text_input_stops = 0
+
+    def start_text_input(self, *, timeout: float = 10.0) -> None:
+        """Record selection of the task-scoped headless input method."""
+        self.text_input_starts += 1
+
+    def stop_text_input(self, *, timeout: float = 10.0) -> None:
+        """Record restoration of the input method used before the task."""
+        self.text_input_stops += 1
 
     def capture_screen(self, *, timeout: float = 10.0) -> ScreenFrame:
         """Return a distinct synthetic frame for each observation."""
@@ -103,6 +113,8 @@ def test_each_call_executes_at_most_one_action_then_observes_again() -> None:
     assert [item[1] for item in model.seen] == [0, 1]
     assert model.seen[0][0] != model.seen[1][0]
     assert second.latest_observation.screen.sha256 == "2" * 64
+    assert device.text_input_starts == 1
+    assert device.text_input_stops == 1
 
 
 def test_step_callback_reports_executed_action() -> None:
@@ -123,6 +135,64 @@ def test_step_callback_reports_executed_action() -> None:
     assert result.status is SessionStatus.RUNNING
     assert reported == list(result.steps)
     assert result.steps[0].usage == usage
+
+
+def test_context_exit_restores_input_for_an_unfinished_task() -> None:
+    """Restore the original IME when a caller stops between planner steps."""
+    device = FakeDevice()
+    session = PlannerSession(
+        FakeModel([ActionDecision(TapAction(Point(30, 40)), TRACE)]),
+        "Start but do not finish",
+        device,
+        settle_seconds=0,
+    )
+
+    with session:
+        result = session.step()
+        assert result.status is SessionStatus.RUNNING
+        assert device.text_input_stops == 0
+
+    assert device.text_input_starts == 1
+    assert device.text_input_stops == 1
+
+
+def test_input_start_failure_stops_before_observation() -> None:
+    """Report helper-selection failure without touching the task UI."""
+
+    class FailingStartDevice(FakeDevice):
+        def start_text_input(self, *, timeout: float = 10.0) -> None:
+            raise InputError("cannot select helper")
+
+    device = FailingStartDevice()
+    session = PlannerSession(FakeModel([]), "Cannot start", device, settle_seconds=0)
+
+    result = session.step()
+
+    assert result.status is SessionStatus.ERROR
+    assert "failed to start headless text input" in result.message
+    assert device.screen_calls == 0
+    assert device.text_input_stops == 0
+
+
+def test_input_restore_failure_turns_terminal_result_into_error() -> None:
+    """Do not report task success when the user's previous IME was not restored."""
+
+    class FailingStopDevice(FakeDevice):
+        def stop_text_input(self, *, timeout: float = 10.0) -> None:
+            raise InputError("cannot restore keyboard")
+
+    device = FailingStopDevice()
+    session = PlannerSession(
+        FakeModel([FinishDecision("done", TRACE)]),
+        "Finish with cleanup failure",
+        device,
+        settle_seconds=0,
+    )
+
+    result = session.step()
+
+    assert result.status is SessionStatus.ERROR
+    assert "failed to restore input method" in result.message
 
 
 def test_session_dispatches_long_press_as_one_action() -> None:

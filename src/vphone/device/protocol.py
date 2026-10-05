@@ -50,6 +50,14 @@ class DeviceSession(Protocol):
         """Send one Android key event."""
         ...
 
+    def start_text_input(self, *, timeout: float = 10.0) -> None:
+        """Select the headless input helper for the current task."""
+        ...
+
+    def stop_text_input(self, *, timeout: float = 10.0) -> None:
+        """Hide the helper and restore the input method used before the task."""
+        ...
+
     def input_text(self, text: str, *, timeout: float = 10.0) -> PrimitiveResult:
         """Type printable text into the currently focused field."""
         ...

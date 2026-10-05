@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
+from vphone.device.adb import input as adb_input
 from vphone.device.adb.session import AdbDeviceSession
 from vphone.device.errors import DeviceClosedError
 from vphone.device.models import (
@@ -46,6 +47,55 @@ def test_closed_session_rejects_operations() -> None:
 
     with pytest.raises(DeviceClosedError):
         session.health_check()
+
+
+def test_task_text_input_lifecycle_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Select and restore the task IME once even when lifecycle calls repeat."""
+    calls = []
+    monkeypatch.setattr(
+        adb_input,
+        "start_text_input",
+        lambda runner, serial, timeout: (
+            calls.append(("start", serial, timeout)) or "com.example.ime/.Keyboard"
+        ),
+    )
+    monkeypatch.setattr(
+        adb_input,
+        "stop_text_input",
+        lambda runner, serial, previous, timeout: calls.append(("stop", serial, previous, timeout)),
+    )
+    session = AdbDeviceSession(FakeRunner(), descriptor())
+
+    session.start_text_input(timeout=3)
+    session.start_text_input(timeout=3)
+    session.stop_text_input(timeout=4)
+    session.stop_text_input(timeout=4)
+
+    assert calls == [
+        ("start", "serial", 3),
+        ("stop", "serial", "com.example.ime/.Keyboard", 4),
+    ]
+
+
+def test_close_restores_active_task_input(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Use device-session cleanup as a final safety net for abandoned tasks."""
+    restored = []
+    monkeypatch.setattr(
+        adb_input,
+        "start_text_input",
+        lambda runner, serial, timeout: "com.example.ime/.Keyboard",
+    )
+    monkeypatch.setattr(
+        adb_input,
+        "stop_text_input",
+        lambda runner, serial, previous, timeout: restored.append(previous),
+    )
+    session = AdbDeviceSession(FakeRunner(), descriptor())
+
+    session.start_text_input()
+    session.close()
+
+    assert restored == ["com.example.ime/.Keyboard"]
 
 
 def test_sessions_for_same_device_serialize_commands() -> None:

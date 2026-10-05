@@ -76,17 +76,27 @@ def test_main_wires_task_config_device_and_planner(
         observed["device"] = device
         observed["options"] = options
 
-        def step():
-            """Finish without touching the synthetic device."""
-            return SessionResult(
-                SessionStatus.FINISHED,
-                "Battery 80%",
-                (),
-                None,
-                DecisionTrace("Battery page shows 80%", "The requested battery value is visible"),
-            )
+        class FakeSession:
+            def __enter__(self):
+                return self
 
-        return SimpleNamespace(step=step)
+            def __exit__(self, exc_type, exc, traceback):
+                return None
+
+            def step(self):
+                """Finish without touching the synthetic device."""
+                return SessionResult(
+                    SessionStatus.FINISHED,
+                    "Battery 80%",
+                    (),
+                    None,
+                    DecisionTrace(
+                        "Battery page shows 80%",
+                        "The requested battery value is visible",
+                    ),
+                )
+
+        return FakeSession()
 
     monkeypatch.setattr(cli, "AdbDeviceBackend", FakeBackend)
     monkeypatch.setattr(cli, "OpenAICompatibleDecisionModel", fake_model)

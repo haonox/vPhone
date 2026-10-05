@@ -49,6 +49,8 @@ class AdbDeviceSession:
         self.capabilities = DeviceCapabilities()
         self._lock = _lock_for_device(descriptor.device_id)
         self._closed = False
+        self._task_input_active = False
+        self._previous_input_method: str | None = None
 
     def health_check(self, *, timeout: float = 5.0) -> DeviceHealth:
         """Query whether the selected device is still ready.
@@ -179,6 +181,38 @@ class AdbDeviceSession:
             self._ensure_open()
             adb_input.prepare_text_input(self._runner, self.descriptor.device_id, timeout=timeout)
 
+    def start_text_input(self, *, timeout: float = 10.0) -> None:
+        """Keep the headless helper selected until the current task ends."""
+        with self._lock:
+            self._ensure_open()
+            if self._task_input_active:
+                return
+            previous = adb_input.start_text_input(
+                self._runner,
+                self.descriptor.device_id,
+                timeout=timeout,
+            )
+            self._previous_input_method = previous
+            self._task_input_active = True
+
+    def stop_text_input(self, *, timeout: float = 10.0) -> None:
+        """Hide the helper and restore the input method saved for this task."""
+        with self._lock:
+            self._ensure_open()
+            if not self._task_input_active:
+                return
+            previous = self._previous_input_method
+            if previous is None:
+                raise RuntimeError("active text input task has no saved input method")
+            adb_input.stop_text_input(
+                self._runner,
+                self.descriptor.device_id,
+                previous,
+                timeout=timeout,
+            )
+            self._task_input_active = False
+            self._previous_input_method = None
+
     def input_text(self, text: str, *, timeout: float = 10.0) -> PrimitiveResult:
         """Enter text into the currently focused device field.
 
@@ -212,8 +246,12 @@ class AdbDeviceSession:
             )
 
     def close(self) -> None:
-        """Mark this session closed; later operations will be rejected."""
+        """Restore task input state, then reject later device operations."""
         with self._lock:
+            if self._closed:
+                return
+            if self._task_input_active:
+                self.stop_text_input()
             self._closed = True
 
     def __enter__(self) -> Self:
@@ -235,7 +273,12 @@ class AdbDeviceSession:
             exc: Exception instance raised in the context, if any.
             traceback: Traceback of the exception, if any.
         """
-        self.close()
+        try:
+            self.close()
+        except Exception as cleanup_error:
+            if exc is None:
+                raise
+            exc.add_note(f"failed to close device session: {cleanup_error}")
 
     def _ensure_open(self) -> None:
         """Reject operations after the session has been closed."""
