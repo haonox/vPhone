@@ -97,6 +97,7 @@ def test_each_call_executes_at_most_one_action_then_observes_again() -> None:
     assert second.completed is True
     assert second.message == "Battery 80%"
     assert second.terminal_trace == TRACE
+    assert second.terminal_action == "finish"
     assert device.taps == [Point(30, 40)]
     assert device.screen_calls == 2
     assert [item[1] for item in model.seen] == [0, 1]
@@ -245,6 +246,7 @@ def test_stop_preserves_terminal_trace_without_adding_an_action() -> None:
 
     assert result.status is SessionStatus.STOPPED
     assert result.terminal_trace == TRACE
+    assert result.terminal_action == "stop"
     assert result.steps == ()
 
 

@@ -25,30 +25,22 @@ def _report_step(step: StepRecord) -> None:
         ("result", step.result_description),
         ("duration", f"{step.result.duration_seconds:.3f}s"),
     ]
+    if step.usage is not None:
+        usage_parts = [
+            f"prompt={step.usage.prompt_tokens}",
+            f"completion={step.usage.completion_tokens}",
+            f"total={step.usage.total_tokens}",
+        ]
+        if step.usage.cache_hit_tokens is not None:
+            usage_parts.append(f"cache_hit={step.usage.cache_hit_tokens}")
+        if step.usage.cache_miss_tokens is not None:
+            usage_parts.append(f"cache_miss={step.usage.cache_miss_tokens}")
+        fields.append(("usage", " ".join(usage_parts)))
+
     lines = ["Step completed"]
     for index, (label, value) in enumerate(fields):
-        is_last = index == len(fields) - 1 and step.usage is None
+        is_last = index == len(fields) - 1
         lines.append(f"{'└──' if is_last else '├──'} {label}: {value}")
-
-    if step.usage is not None:
-        usage_lines = [
-            (
-                f"prompt={step.usage.prompt_tokens} "
-                f"completion={step.usage.completion_tokens} total={step.usage.total_tokens}"
-            )
-        ]
-        cache_counts = []
-        if step.usage.cache_hit_tokens is not None:
-            cache_counts.append(f"cache_hit={step.usage.cache_hit_tokens}")
-        if step.usage.cache_miss_tokens is not None:
-            cache_counts.append(f"cache_miss={step.usage.cache_miss_tokens}")
-        if cache_counts:
-            usage_lines.append(" ".join(cache_counts))
-
-        lines.append("└── usage")
-        for index, value in enumerate(usage_lines):
-            connector = "└──" if index == len(usage_lines) - 1 else "├──"
-            lines.append(f"    {connector} {value}")
 
     print("\n".join(lines), flush=True)
 
@@ -102,10 +94,12 @@ def main(argv: list[str] | None = None) -> None:
             result = session.step()
             if result.terminal:
                 break
-    print(f"status={result.status.value}; actions={len(result.steps)}")
+
     if result.terminal_trace is not None:
         print(f"screen_summary={result.terminal_trace.screen_summary}")
         print(f"decision_reason={result.terminal_trace.decision_reason}")
+    if result.terminal_action is not None:
+        print(f"action={result.terminal_action}")
     print(result.message)
     if not result.completed:
         raise SystemExit(1)

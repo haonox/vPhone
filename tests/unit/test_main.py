@@ -103,9 +103,10 @@ def test_main_wires_task_config_device_and_planner(
     assert observed["options"]["settle_seconds"] == 0
     assert "allowed_kinds" not in observed["options"]
     output = capsys.readouterr().out
-    assert "status=finished; actions=0" in output
+    assert "status=" not in output
     assert "screen_summary=Battery page shows 80%" in output
     assert "decision_reason=The requested battery value is visible" in output
+    assert "action=finish" in output
     assert "trajectory=" not in output
     assert not (tmp_path / "traces").exists()
     assert "on_observation" not in observed["options"]
@@ -192,8 +193,10 @@ def test_progress_output_includes_current_action_coordinates(
     output = capsys.readouterr().out
     assert "├── action: tap(x=12, y=34)" in output
     assert "├── duration: 0.250s" in output
-    assert "└── usage\n    ├── prompt=3593 completion=129 total=3722" in output
-    assert output.endswith("    └── cache_hit=2304 cache_miss=1289\n")
+    assert output.endswith(
+        "└── usage: prompt=3593 completion=129 total=3722 "
+        "cache_hit=2304 cache_miss=1289\n"
+    )
 
 
 def test_progress_output_includes_long_press_coordinates(
