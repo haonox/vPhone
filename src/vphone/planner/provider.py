@@ -31,6 +31,9 @@ Actions:
 - Use long_press only when the visible target requires a hold gesture, such as opening a
   context menu. A normal activation should use tap.
 - Use input_text to insert text at the current cursor.
+- vPhone uses a headless input method, so no software keyboard appears when a text field is
+  focused. After tapping a text field once, try input_text on the next turn if the field remains
+  visible. Do not wait for a keyboard to appear or repeatedly tap the same text field.
 - If the focused field already contains a value that must be fully replaced, use replace_text.
   Do not long-press, select-all, or delete character by character.
 - If the screenshot shows a loading indicator or in-progress state, use wait.
