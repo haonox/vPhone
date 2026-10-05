@@ -106,6 +106,7 @@ def test_provider_sends_png_as_original_and_returns_validated_action(capsys) -> 
     assert decision.action.point == Point(99, 199)
     assert completions.kwargs["model"] == "vision-test"
     assert completions.kwargs["max_tokens"] == 4096
+    assert completions.kwargs["tool_choice"] == "auto"
     assert "reasoning_effort" not in completions.kwargs
     tap_tool = next(
         item for item in completions.kwargs["tools"] if item["function"]["name"] == "tap"

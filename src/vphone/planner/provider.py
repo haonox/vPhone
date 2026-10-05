@@ -193,7 +193,7 @@ class OpenAICompatibleDecisionModel:
                         },
                     ],
                     "tools": tools_for_screen(screen),
-                    "tool_choice": "required",
+                    "tool_choice": "auto",
                     "max_tokens": self._config.max_output_tokens,
                 }
                 if self._config.reasoning_effort is not None:
